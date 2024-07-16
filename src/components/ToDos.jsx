@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import Modal from "@mui/material/Modal";
 import Typography from "@mui/material/Typography";
@@ -11,14 +11,17 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { removeTodo, editTodo } from "../features/todo/todoSlice";
+import { removeTodo, editTodo, updateList, setTodoState } from "../features/todo/todoSlice";
 import CloseIcon from "@mui/icons-material/Close";
 import TextField from "@mui/material/TextField";
 import { useState } from "react";
 import axios from "axios";
+import { FormControl } from "@mui/material";
 
 function ToDos() {
   const todos = useSelector((state) => state.todos);
+  const [todoList, setTodoList] = useState([]);
+  const shouldUpdate = useSelector((state) => state.shouldUpdate);
   const dispatch = useDispatch();
 
   const [editTodoObject, setEditTodoObject] = useState({});
@@ -30,24 +33,53 @@ function ToDos() {
   const handleRemoveToDo = (id) => {
     dispatch(removeTodo(id));
 
-    axios.delete(`http://localhost:8000/deleteToDO/${id}`).then((response) => {
-      console.log(response.status, response.data.message);
-    }).catch((error) => {
-      console.error("There was an error deleting the todo!", error);
-    });
-  }
-  const handleEditToDo = (id, text) => {
-    dispatch(editTodo({id,text}));
-
-    axios.post(`http://localhost:8000/editToDO`, {
+    axios
+      .delete(`http://localhost:8080/api/todos/deleteToDO/${id}`)
+      .then((response) => {
+        dispatch(updateList(true));
+        console.log(response.status, response.data.message);
+        console.log(id);
+      })
+      .catch((error) => {
+        console.error("There was an error deleting the todo!", { id });
+      });
+  };
+  const handleEditToDo = (id, text, description) => {
+    
+    axios
+    .put(`http://localhost:8080/api/todos/updateTodo/${id}`, {
       id: id,
-      todoDB: text
-    }).then((response) => {
-      console.log(response.status, response.data.message);
-    }).catch((error) => {
-      console.error("There was an error deleting the todo!", error);
+      text: text,
+      description: description
+    })
+    .then((response) => {
+      dispatch(updateList(true));
+      dispatch(editTodo({ id, text, description }));
+        console.log(response.status, response.data.message);
+      })
+      .catch((error) => {
+        console.error("There was an error deleting the todo!", error);
+      });
+  };
+
+  const getToDoHandler = () => {
+    axios.get("http://localhost:8080/api/todos").then((response) => {
+      dispatch(updateList(false));
+      setTodoList(response.data);
+      dispatch(setTodoState(response.data))
+      console.log(todoList);
+      console.log(response.status, response.data.token);
     });
-  }
+  };
+  useEffect(() => {
+    getToDoHandler();
+  }, []);
+
+  useEffect(() => {
+    if (shouldUpdate === true) {
+      getToDoHandler();
+    }
+  }, [shouldUpdate]);
 
   return (
     <>
@@ -64,7 +96,7 @@ function ToDos() {
           }}
         >
           <List>
-            {todos.map((todo) => (
+            {todoList.map((todo) => (
               <ListItem
                 key={todo.id}
                 secondaryAction={
@@ -77,7 +109,8 @@ function ToDos() {
                         handleOpen();
                         setEditTodoObject({
                           id: todo.id,
-                          text: todo.text,
+                          text: todo.title,
+                          description: todo.description,
                         });
                         console.log(todo.text);
                       }}
@@ -94,7 +127,10 @@ function ToDos() {
                   </>
                 }
               >
-                <ListItemText primary={todo.text} secondary={todo.description} />
+                <ListItemText
+                  primary={todo.title}
+                  secondary={todo.description}
+                />
               </ListItem>
             ))}
           </List>
@@ -144,31 +180,46 @@ function ToDos() {
                 margin: "20px",
               }}
             >
-              <TextField
-                id="outlined-basic"
-                label="Enter Todo.."
-                variant="outlined"
-                value={editTodoObject.text}
-                onChange={(e) =>
-                  setEditTodoObject({
-                    id: editTodoObject.id,
-                    text: e.target.value,
-                  })
-                }
-                sx={{ marginRight: "40px", marginBottom: "30px" }}
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                sx={{ padding: "10px 20px", width: "320px" }}
-                onClick={() => {
-                  handleEditToDo(editTodoObject.id, editTodoObject.text)
-                  handleClose();
-                }}
-              >
-                Edit Todo
-              </Button>
+              <FormControl action="">
+                <TextField
+                  id="outlined-basic"
+                  label="Todo Title"
+                  variant="outlined"
+                  value={editTodoObject.text}
+                  onChange={(e) =>
+                    setEditTodoObject({
+                      id: editTodoObject.id,
+                      text: e.target.value,
+                    })
+                  }
+                  sx={{ marginRight: "40px", marginBottom: "30px" }}
+                />
+                <TextField
+                  id="outlined-basic"
+                  label="Todo Description"
+                  variant="outlined"
+                  value={editTodoObject.description}
+                  onChange={(e) =>
+                    setEditTodoObject({
+                      id: editTodoObject.id,
+                      description: e.target.value,
+                    })
+                  }
+                  sx={{ marginRight: "40px", marginBottom: "30px" }}
+                />
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  sx={{ padding: "10px 20px", width: "320px" }}
+                  onClick={() => {
+                    handleEditToDo(editTodoObject.id, editTodoObject.text, editTodoObject.description);
+                    handleClose();
+                  }}
+                >
+                  Edit Todo
+                </Button>
+              </FormControl>
             </div>
           </Box>
         </Modal>

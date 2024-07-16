@@ -6,7 +6,7 @@ import Container from "@mui/material/Container";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import { addTodo } from "../features/todo/todoSlice";
+import { addTodo, updateList } from "../features/todo/todoSlice";
 import { useDispatch } from "react-redux";
 import axios from "axios";
 import { selectId } from "../features/todo/todoSlice";
@@ -23,15 +23,17 @@ function Addtodo() {
       title: title,
       description: description,
     };
-    dispatch(addTodo({ title, description }));
     axios
-      .post("http://localhost:8080/api/todos/create", userData)
-      .then((response) => {
+    .post("http://localhost:8080/api/todos/create", userData)
+    .then((response) => {
+        dispatch(updateList(true));
+        dispatch(addTodo({id: response.data.id, text: response.data.title, description: response.data.description}));
         console.log(response.status, response.data.token);
       });
     setTitle('');
     setDescription('');
   };
+  
 
   return (
     <>
@@ -80,6 +82,7 @@ function Addtodo() {
             variant="contained"
             color="primary"
             sx={{ padding: "10px 20px" }}
+            // onClick={getToDoHandler}
           >
             Add Todo
           </Button>
